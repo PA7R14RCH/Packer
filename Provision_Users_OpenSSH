@@ -1,0 +1,59 @@
+{
+    "variables": {
+        "aws_access_key": "{{env `AWS_ACCESS_KEY_ID`}}",
+        "aws_secret_key": "{{env `AWS_SECRET_ACCESS_KEY`}}"
+    },
+
+    "builders": [
+        {
+            "type": "amazon-ebs",
+            "access_key": "{{user `aws_access_key`}}",
+            "secret_key": "{{user `aws_secret_key`}}",
+            "region": "us-west-2",
+            "instance_type": "t2.micro",
+            "source_ami_filter": {
+                "filters": {
+                    "virtualization-type": "hvm",
+                    "name": "Windows_Server-2019-English-Full-Base-*",
+                    "root-device-type": "ebs"
+                },
+                "owners": [
+                    "amazon"
+                ],
+                "most_recent": true
+            },
+            "ami_name": "windows-server-2019-{{timestamp}}",
+            "user_data_file": "user-data.ps1",
+            "communicator": "ssh",
+            "ssh_username": "Administrator",
+            "ssh_password": "",
+            "ssh_timeout": "1h"
+        }
+    ],
+
+    "provisioners": [
+        {
+            "type": "powershell",
+            "inline": [
+                "Write-Host 'Installing Chocolatey'",
+                "Set-ExecutionPolicy Bypass -Scope Process -Force; [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072; iex ((New-Object System.Net.WebClient).DownloadString('https://chocolatey.org/install.ps1'))",
+                "Write-Host 'Updating packages'",
+                "choco upgrade chocolatey -y",
+                "Write-Host 'Installing dependencies'",
+                "choco install openssh -y",
+                "Write-Host 'Creating users'",
+                "net user User1 password1 /add",
+                "net user User2 password2 /add",
+                "net user User3 password3 /add",
+                "Write-Host 'Adding users to Administrators group'",
+                "net localgroup Administrators User1 /add",
+                "net localgroup Administrators User2 /add",
+                "net localgroup Administrators User3 /add",
+                "Write-Host 'Enabling OpenSSH'",
+                "Start-Service ssh-agent",
+                "Set-Service -Name ssh-agent -StartupType 'Automatic'",
+                "Write-Host 'Finished provisioning'"
+            ]
+        }
+    ]
+}
